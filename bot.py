@@ -1,7 +1,5 @@
 import os
-import json
 import datetime
-import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler,
@@ -9,7 +7,7 @@ from telegram.ext import (
 )
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
 # ── RPG LEVELS ───────────────────────────────────────────────────────────────
 LEVELS = [
@@ -63,7 +61,7 @@ QUIZZES = {
         "skill": "visual", "sp": 10,
         "qs": [
             {"q": "Сколько шрифтов в посте?", "opts": ["5+ разных 🤪","1-2 максимум ✅","Чем больше, тем лучше 🎭"], "a": 1, "exp": "Минимализм рулит! 1-2 шрифта — чисто и стильно 💎"},
-            {"q": "Лучший размер поста Instagram?", "opts": ["1080x1080px ✅","500x300px 😬","2000x3000px 📏"], "a": 0, "exp": "1080x1080 — стандарт квадрата! Также 1080x1350 для вертикали 🖼️"},
+            {"q": "Лучший размер поста Instagram?", "opts": ["1080x1080px ✅","500x300px 😬","2000x3000px 📏"], "a": 0, "exp": "1080x1080 — стандарт квадрата! 🖼️"},
             {"q": "Что такое визуальный стиль?", "opts": ["Красивая аватарка 🖼️","Единые цвета, шрифты и атмосфера бренда 🎨","Много разных фильтров 🌈"], "a": 1, "exp": "Визстиль = единство! Люди узнают тебя с первого взгляда 👁️"},
         ],
     },
@@ -72,274 +70,120 @@ QUIZZES = {
         "skill": "promo", "sp": 15,
         "qs": [
             {"q": "Прогрев — это?", "opts": ["Реклама в лоб 📢","Контент, создающий доверие перед продажей ❤️","Скидки и акции 🎁"], "a": 1, "exp": "Прогрев = разогрев через ценность и историю 🔥"},
-            {"q": "Лучший тип прогревающего контента?", "opts": ["Прайс-листы 💰","Разборы ошибок и кейсы 🎯","Репосты чужого контента 🔄"], "a": 1, "exp": "Кейсы и разборы = доверие + экспертность! Люди видят результат 💪"},
-            {"q": "Сколько касаний нужно для продажи?", "opts": ["1-2 поста 😅","7-12 касаний минимум 🎯","100+ постов 😵"], "a": 1, "exp": "7-12 касаний — столько нужно человеку чтобы решиться! Прогревай стабильно 🔥"},
+            {"q": "Лучший тип прогревающего контента?", "opts": ["Прайс-листы 💰","Разборы ошибок и кейсы 🎯","Репосты чужого контента 🔄"], "a": 1, "exp": "Кейсы и разборы = доверие + экспертность! 💪"},
+            {"q": "Сколько касаний нужно для продажи?", "opts": ["1-2 поста 😅","7-12 касаний минимум 🎯","100+ постов 😵"], "a": 1, "exp": "7-12 касаний — столько нужно человеку чтобы решиться! 🔥"},
         ],
     },
 }
 
-# ── WARMUP SCHOOL (Мария Афонина) ─────────────────────────────────────────────
+# ── WARMUP SCHOOL ─────────────────────────────────────────────────────────────
 WARMUP_LESSONS = [
-    {
-        "title": "🔥 Урок 1: Что такое прогрев",
-        "text": (
-            "Прогрев — это не реклама в лоб, а постепенное создание доверия.
-
-"
-            "📌 Три кита прогрева:
-"
-            "• Личность — кто ты как человек
-"
-            "• Экспертность — почему тебе можно доверять
-"
-            "• Желание — почему людям нужно твоё решение
-
-"
-            "💡 Главное правило Марии Афониной:
-"
-            "Сначала дай ценность — потом продавай!"
-        ),
-        "xp": 20, "skill": "promo"
-    },
-    {
-        "title": "👤 Урок 2: Личность в блоге",
-        "text": (
-            "Люди покупают у людей, а не у корпораций.
-
-"
-            "📌 Что показывать в блоге:
-"
-            "• Свой путь и ошибки (честность = доверие)
-"
-            "• Закулисье работы
-"
-            "• Личные ценности и принципы
-"
-            "• Юмор и живые моменты
-
-"
-            "💡 Задание: напиши пост-знакомство — кто ты, почему занимаешься SMM?"
-        ),
-        "xp": 20, "skill": "stories"
-    },
-    {
-        "title": "📖 Урок 3: Сторителлинг",
-        "text": (
-            "История продаёт лучше любой рекламы.
-
-"
-            "📌 Структура сильной истории:
-"
-            "1. Боль/проблема (с чего всё началось)
-"
-            "2. Путь (что ты делал)
-"
-            "3. Результат (что изменилось)
-"
-            "4. Вывод (урок для читателя)
-
-"
-            "💡 Формула Афониной: 'Было — стало — как' = идеальная история для сторис!"
-        ),
-        "xp": 25, "skill": "stories"
-    },
-    {
-        "title": "💊 Урок 4: Прогрев через боли",
-        "text": (
-            "Говори о проблемах клиента лучше, чем он сам.
-
-"
-            "📌 Как найти боли ЦА:
-"
-            "• Читай комментарии конкурентов
-"
-            "• Спрашивай в сторис
-"
-            "• Изучай форумы и Telegram-каналы
-
-"
-            "📌 Типы болей в SMM:
-"
-            "• Нет охватов
-"
-            "• Нет продаж
-"
-            "• Нет времени на контент
-"
-            "• Непонятно что публиковать
-
-"
-            "💡 Пиши не о себе — пиши О НИХ!"
-        ),
-        "xp": 25, "skill": "target"
-    },
-    {
-        "title": "🧠 Урок 5: Интуитивный маркетинг",
-        "text": (
-            "Маркетинг — это наука о людях, а не о постах.
-
-"
-            "📌 Принципы интуитивного маркетинга (Афонина):
-"
-            "• Доверяй своей аудитории
-"
-            "• Не продавай — помогай выбрать
-"
-            "• Будь последовательна — хаос отпугивает
-"
-            "• Экспериментируй и анализируй результат
-
-"
-            "💡 Ты — не просто SMM-специалист. Ты архитектор доверия! 🏗️"
-        ),
-        "xp": 30, "skill": "strategy"
-    },
+    {"title": "🔥 Урок 1: Что такое прогрев", "text": "Прогрев — это не реклама в лоб, а постепенное создание доверия.\n\n📌 Три кита прогрева:\n• Личность — кто ты как человек\n• Экспертность — почему тебе можно доверять\n• Желание — почему людям нужно твоё решение\n\n💡 Главное правило Марии Афониной:\nСначала дай ценность — потом продавай!", "xp": 20, "skill": "promo"},
+    {"title": "👤 Урок 2: Личность в блоге", "text": "Люди покупают у людей, а не у корпораций.\n\n📌 Что показывать в блоге:\n• Свой путь и ошибки (честность = доверие)\n• Закулисье работы\n• Личные ценности и принципы\n• Юмор и живые моменты\n\n💡 Задание: напиши пост-знакомство!", "xp": 20, "skill": "stories"},
+    {"title": "📖 Урок 3: Сторителлинг", "text": "История продаёт лучше любой рекламы.\n\n📌 Структура сильной истории:\n1. Боль/проблема (с чего всё началось)\n2. Путь (что ты делал)\n3. Результат (что изменилось)\n4. Вывод (урок для читателя)\n\n💡 Формула Афониной: 'Было — стало — как' = идеальная история!", "xp": 25, "skill": "stories"},
+    {"title": "💊 Урок 4: Прогрев через боли", "text": "Говори о проблемах клиента лучше, чем он сам.\n\n📌 Как найти боли ЦА:\n• Читай комментарии конкурентов\n• Спрашивай в сторис\n• Изучай форумы и Telegram-каналы\n\n💡 Пиши не о себе — пиши О НИХ!", "xp": 25, "skill": "target"},
+    {"title": "🧠 Урок 5: Интуитивный маркетинг", "text": "Маркетинг — это наука о людях, а не о постах.\n\n📌 Принципы (Афонина):\n• Доверяй своей аудитории\n• Не продавай — помогай выбрать\n• Будь последовательна — хаос отпугивает\n• Экспериментируй и анализируй результат\n\n💡 Ты — архитектор доверия! 🏗️", "xp": 30, "skill": "strategy"},
 ]
 
 # ── SMM QUEST ─────────────────────────────────────────────────────────────────
 SMM_QUEST = [
     {"q": "Марьяша начала вести Instagram. С чего начать?", "opts": ["Сразу делать рекламу 📢","Оформить шапку профиля и придумать стиль 🎨","Купить подписчиков 💸"], "a": 1, "xp": 20, "exp": "Профиль — это твоя витрина! Сначала упаковка 📦"},
     {"q": "Ты написала пост, лайков мало. Что делать?", "opts": ["Удалить и сдаться 😢","Проанализировать — заголовок, время, хэштеги 🔍","Купить лайки 👍"], "a": 1, "xp": 20, "exp": "Анализ — ключ к росту! Каждый пост — это тест 🧪"},
-    {"q": "Клиент хочет 1000 подписчиков за неделю. Ты?", "opts": ["Соглашусь и накручу 🤡","Объясню что нужно время и стратегия 💪","Откажусь от клиента 🏃"], "a": 1, "xp": 30, "exp": "Честность = доверие! Настоящий SMM — это стратегия, а не магия ✨"},
-    {"q": "Лучший способ расти в Instagram сейчас?", "opts": ["Покупать рекламу 💰","Reels + коллаборации + регулярный постинг 🎬","Хэштеги 📌"], "a": 1, "xp": 25, "exp": "Reels дают органику, коллабы — аудиторию, регулярность — доверие! 🔥"},
-    {"q": "Контент-план нужен?", "opts": ["Нет, буду по вдохновению 🦋","Да, без плана хаос 📅","Только для больших блогов 🤷"], "a": 1, "xp": 20, "exp": "Контент-план = твой компас! Без него сложно расти системно 🧭"},
-    {"q": "Марьяша стала SMM-специалистом! Первый шаг?", "opts": ["Взять 10 клиентов сразу 😱","Найти первого клиента и сделать круто 💎","Ждать пока найдут сами 😴"], "a": 1, "xp": 50, "exp": "Один довольный клиент = 10 рекомендаций! Начни с малого и сделай лучшее 🌟"},
+    {"q": "Клиент хочет 1000 подписчиков за неделю. Ты?", "opts": ["Соглашусь и накручу 🤡","Объясню что нужно время и стратегия 💪","Откажусь от клиента 🏃"], "a": 1, "xp": 30, "exp": "Честность = доверие! Настоящий SMM — это стратегия ✨"},
+    {"q": "Лучший способ расти в Instagram сейчас?", "opts": ["Покупать рекламу 💰","Reels + коллаборации + регулярный постинг 🎬","Только хэштеги 📌"], "a": 1, "xp": 25, "exp": "Reels дают органику, коллабы — аудиторию, регулярность — доверие! 🔥"},
+    {"q": "Контент-план нужен?", "opts": ["Нет, буду по вдохновению 🦋","Да, без плана хаос 📅","Только для больших блогов 🤷"], "a": 1, "xp": 20, "exp": "Контент-план = твой компас! 🧭"},
+    {"q": "Марьяша стала SMM-специалистом! Первый шаг?", "opts": ["Взять 10 клиентов сразу 😱","Найти первого клиента и сделать круто 💎","Ждать пока найдут сами 😴"], "a": 1, "xp": 50, "exp": "Один довольный клиент = 10 рекомендаций! 🌟"},
 ]
 
 # ── USER STATE ────────────────────────────────────────────────────────────────
 user_data: dict = {}
 
-def get_user(uid: int) -> dict:
+def get_user(uid):
     if uid not in user_data:
-        user_data[uid] = {
-            "xp": 0,
-            "skills": {k: 0 for k in SKILLS},
-            "badges": [],
-            "quest_step": 0,
-            "quiz_state": None,
-            "warmup_step": 0,
-            "chat_history": [],
-        }
+        user_data[uid] = {"xp": 0, "skills": {k: 0 for k in SKILLS}, "badges": [], "quest_step": 0, "quiz_state": None, "warmup_step": 0, "chat_history": []}
     return user_data[uid]
 
-def get_level(xp: int):
-    current = LEVELS[0]
+def get_level(xp):
+    cur = LEVELS[0]
     for lvl in LEVELS:
-        if xp >= lvl[0]:
-            current = lvl
-    return current
+        if xp >= lvl[0]: cur = lvl
+    return cur
 
-def add_xp(uid: int, amount: int, skill: str = None) -> str:
+def add_xp(uid, amount, skill=None):
     u = get_user(uid)
-    old_lvl = get_level(u["xp"])[1]
+    old = get_level(u["xp"])[1]
     u["xp"] += amount
-    if skill and skill in u["skills"]:
-        u["skills"][skill] = min(5, u["skills"][skill] + 1)
-    new_lvl = get_level(u["xp"])[1]
-    if u["xp"] >= 300 and "xp_300" not in u["badges"]:
-        u["badges"].append("xp_300")
-    if u["xp"] >= 1000 and "xp_1000" not in u["badges"]:
-        u["badges"].append("xp_1000")
-    if old_lvl != new_lvl:
-        return f"⬆️ НОВЫЙ УРОВЕНЬ: {new_lvl}!"
-    return ""
+    if skill and skill in u["skills"]: u["skills"][skill] = min(5, u["skills"][skill] + 1)
+    new = get_level(u["xp"])[1]
+    if u["xp"] >= 300 and "xp_300" not in u["badges"]: u["badges"].append("xp_300")
+    if u["xp"] >= 1000 and "xp_1000" not in u["badges"]: u["badges"].append("xp_1000")
+    return f"⬆️ НОВЫЙ УРОВЕНЬ: {new}!" if old != new else ""
 
-def xp_bar(xp: int) -> str:
+def xp_bar(xp):
     lvls = [l[0] for l in LEVELS]
-    cur_idx = 0
-    for i, threshold in enumerate(lvls):
-        if xp >= threshold:
-            cur_idx = i
-    if cur_idx < len(LEVELS) - 1:
-        cur_min = lvls[cur_idx]
-        nxt = lvls[cur_idx + 1]
-        progress = int((xp - cur_min) / (nxt - cur_min) * 10)
-        bar = "🟣" * progress + "⬜" * (10 - progress)
-        return f"{bar} {xp}/{nxt} XP"
+    ci = 0
+    for i, t in enumerate(lvls):
+        if xp >= t: ci = i
+    if ci < len(LEVELS) - 1:
+        p = int((xp - lvls[ci]) / (lvls[ci+1] - lvls[ci]) * 10)
+        return "🟣" * p + "⬜" * (10-p) + f" {xp}/{lvls[ci+1]} XP"
     return "🟣" * 10 + " МАКСИМУМ!"
 
-def profile_text(uid: int) -> str:
+def profile_text(uid):
     u = get_user(uid)
     lvl = get_level(u["xp"])
-    lines = [
-        f"👩‍💻 *Профиль Марьяши*",
-        f"",
-        f"Ранг: {lvl[1]}",
-        f"💬 {lvl[2]}",
-        f"",
-        f"⚡ XP: {u['xp']}",
-        f"{xp_bar(u['xp'])}",
-        f"",
-        f"🎯 Скиллы:",
-    ]
+    lines = [f"👩‍💻 *Профиль Марьяши*", f"", f"Ранг: {lvl[1]}", f"💬 {lvl[2]}", f"", f"⚡ XP: {u['xp']}", xp_bar(u["xp"]), f"", f"🎯 Скиллы:"]
     for k, name in SKILLS.items():
-        stars = "⭐" * u["skills"][k] + "☆" * (5 - u["skills"][k])
-        lines.append(f"  {name}: {stars}")
+        lines.append(f"  {name}: " + "⭐" * u["skills"][k] + "☆" * (5 - u["skills"][k]))
     if u["badges"]:
         lines.append("")
         lines.append("🏆 Бейджи: " + " ".join(BADGES[b] for b in u["badges"] if b in BADGES))
     return "\n".join(lines)
 
-# ── AI AGENT ──────────────────────────────────────────────────────────────────
-AI_SYSTEM_PROMPT = """Ты — Марьяша-бот, крутой SMM-наставник для 16-летней девочки по имени Марьяша.
+# ── AI AGENT (Gemini) ─────────────────────────────────────────────────────────
+AI_SYSTEM = """Ты — Марьяша-бот, крутой SMM-наставник для 16-летней девочки Марьяши.
 
-Твоя роль: дружелюбный, энергичный наставник по SMM, который говорит на языке молодёжи.
-
-Правила общения:
-- Говори легко, живо, как подруга — не как учебник
-- Используй эмодзи уместно 🔥
-- Отвечай кратко и по делу (3-5 предложений max)
-- Знаешь SMM: контент-стратегии, прогревы, Reels, визуал, ЦА, аналитику
-- Вдохновляй и поддерживай — Марьяша только начинает!
-- Если вопрос не про SMM — мягко верни к теме
-- Помни контекст разговора
-
-Твои знания основаны на курсе Марии Афониной:
-- Прогрев = создание доверия через ценность и личность
+Говори легко и живо, как подруга — не как учебник. Используй эмодзи уместно 🔥
+Отвечай кратко (3-5 предложений). Знаешь SMM: контент, прогревы, Reels, визуал, ЦА.
+Вдохновляй и поддерживай! Основа знаний — курс Марии Афониной:
+- Прогрев = доверие через ценность и личность
 - Контент-микс: 70% польза / 20% жизнь / 10% продажи
 - Сторителлинг: было — стало — как
-- Reels — главный инструмент охватов сейчас
-- ЦА: изучай боли, говори о них лучше клиента
+- Reels — главный инструмент охватов
+Если вопрос не про SMM — мягко верни к теме."""
 
-Если спрашивают что-то конкретное про SMM — давай практический совет.
-Если просто хотят поговорить — будь дружелюбной и веди к обучению."""
-
-async def ai_chat(uid: int, user_message: str) -> str:
-    if not OPENAI_API_KEY:
-        return (
-            "🤖 AI-агент пока спит... Чтобы он заработал, "
-            "нужно добавить OPENAI_API_KEY в настройки! "
-            "А пока — используй меню ниже 👇"
-        )
+async def ai_chat(uid, message):
+    if not GEMINI_API_KEY:
+        return "🤖 AI-агент пока спит... Нужно добавить GEMINI_API_KEY в секреты GitHub!"
     try:
         import httpx
         u = get_user(uid)
         history = u.get("chat_history", [])
-        history.append({"role": "user", "content": user_message})
-        if len(history) > 20:
-            history = history[-20:]
-        messages = [{"role": "system", "content": AI_SYSTEM_PROMPT}] + history
+        
+        # Build contents for Gemini API
+        contents = []
+        for msg in history[-10:]:
+            contents.append({"role": msg["role"], "parts": [{"text": msg["content"]}]})
+        contents.append({"role": "user", "parts": [{"text": message}]})
+        
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {OPENAI_API_KEY}",
-                    "Content-Type": "application/json",
-                },
+                f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}",
                 json={
-                    "model": "gpt-4o-mini",
-                    "messages": messages,
-                    "max_tokens": 300,
-                    "temperature": 0.8,
-                },
+                    "system_instruction": {"parts": [{"text": AI_SYSTEM}]},
+                    "contents": contents,
+                    "generationConfig": {"maxOutputTokens": 300, "temperature": 0.8}
+                }
             )
         data = resp.json()
-        reply = data["choices"][0]["message"]["content"]
-        history.append({"role": "assistant", "content": reply})
+        reply = data["candidates"][0]["content"]["parts"][0]["text"]
+        
+        history.append({"role": "user", "content": message})
+        history.append({"role": "model", "content": reply})
         u["chat_history"] = history[-20:]
         return reply
     except Exception as e:
-        return f"🤖 Упс, что-то пошло не так: {str(e)[:100]}. Попробуй ещё раз!"
+        return f"🤖 Упс, что-то пошло не так: {str(e)[:120]}. Попробуй ещё раз!"
 
 # ── KEYBOARDS ─────────────────────────────────────────────────────────────────
 def main_kb():
@@ -351,7 +195,7 @@ def main_kb():
         [InlineKeyboardButton("💬 Спросить AI-наставника", callback_data="ai_chat_info")],
     ])
 
-def warmup_kb(step: int):
+def warmup_kb(step):
     btns = []
     for i, l in enumerate(WARMUP_LESSONS):
         mark = "✅ " if i < step else ""
@@ -373,27 +217,21 @@ async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     u = get_user(uid)
     lvl = get_level(u["xp"])
-    text = (
-        f"👋 Привет, Марьяша! Я твой SMM-наставник 💙\n\n"
-        f"Твой ранг: {lvl[1]} | ХР: {u['xp']}\n\n"
-        f"🎮 Прокачивай скиллы, зарабатывай ХР и становись\n"
-        f"👑 Легендой SMM — у тебя всё получится!\n\n"
-        f"💬 Кстати, ты можешь просто написать мне любой вопрос\n"
-        f"про SMM — отвечу как живой наставник! 🤖\n\n"
-        f"Выбери с чего начнём:"
-    )
+    text = (f"👋 Привет, Марьяша! Я твой SMM-наставник 💙\n\n"
+            f"Твой ранг: {lvl[1]} | ХР: {u['xp']}\n\n"
+            f"🎮 Прокачивай скиллы, зарабатывай ХР и становись\n"
+            f"👑 Легендой SMM!\n\n"
+            f"💬 Просто напиши мне любой вопрос про SMM —\n"
+            f"отвечу как живой AI-наставник! 🤖\n\nВыбери с чего начнём:")
     await update.message.reply_text(text, reply_markup=main_kb(), parse_mode="Markdown")
 
 async def handle_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     msg = update.message.text.strip()
-    if msg.startswith("/"):
-        return
+    if msg.startswith("/"): return
     await update.message.chat.send_action("typing")
     reply = await ai_chat(uid, msg)
-    kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("📋 Главное меню", callback_data="start")]
-    ])
+    kb = InlineKeyboardMarkup([[InlineKeyboardButton("📋 Главное меню", callback_data="start")]])
     await update.message.reply_text(reply, reply_markup=kb)
 
 async def cb(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -405,11 +243,8 @@ async def cb(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     if data == "start":
         lvl = get_level(u["xp"])
-        text = (
-            f"👋 Привет! Ранг: {lvl[1]} | ХР: {u['xp']}\n\n"
-            f"💬 Пиши любой вопрос про SMM — отвечу как живой наставник! 🤖\n\n"
-            f"Или выбери раздел:"
-        )
+        text = (f"👋 Ранг: {lvl[1]} | ХР: {u['xp']}\n\n"
+                f"💬 Пиши любой вопрос про SMM — отвечу как AI-наставник! 🤖\n\nВыбери раздел:")
         await q.edit_message_text(text, reply_markup=main_kb(), parse_mode="Markdown")
 
     elif data == "profile":
@@ -417,142 +252,98 @@ async def cb(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         await q.edit_message_text(profile_text(uid), reply_markup=kb, parse_mode="Markdown")
 
     elif data == "ai_chat_info":
-        text = (
-            "💬 *AI-наставник активирован!*\n\n"
-            "Просто напиши мне любой вопрос прямо в чат — и я отвечу!\n\n"
-            "Например:\n"
-            "• Как сделать крутой Reels?\n"
-            "• Что такое прогрев?\n"
-            "• Как найти ЦА?\n"
-            "• Помоги придумать контент-план\n\n"
-            "🤖 Я всегда здесь и отвечаю быстро!"
-        )
+        text = ("💬 *AI-наставник активирован!*\n\n"
+                "Просто напиши мне любой вопрос прямо в чат — и я отвечу!\n\n"
+                "Например:\n• Как сделать крутой Reels?\n• Что такое прогрев?\n"
+                "• Как найти ЦА?\n• Помоги придумать контент-план\n\n"
+                "🤖 Я всегда здесь и отвечаю быстро!")
         kb = InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Назад", callback_data="start")]])
         await q.edit_message_text(text, reply_markup=kb, parse_mode="Markdown")
 
     elif data == "warmup_menu":
-        await q.edit_message_text(
-            "🔥 *Школа Прогревов* (по Марии Афониной)\n\nВыбери урок:",
-            reply_markup=warmup_kb(u["warmup_step"]),
-            parse_mode="Markdown"
-        )
+        await q.edit_message_text("🔥 *Школа Прогревов* (по Марии Афониной)\n\nВыбери урок:",
+                                   reply_markup=warmup_kb(u["warmup_step"]), parse_mode="Markdown")
 
     elif data.startswith("warmup_"):
         idx = int(data.split("_")[1])
         lesson = WARMUP_LESSONS[idx]
         lvl_up = add_xp(uid, lesson["xp"], lesson["skill"])
-        if "first_quiz" not in u["badges"]:
-            u["badges"].append("first_quiz")
-        if idx >= u["warmup_step"]:
-            u["warmup_step"] = idx + 1
+        if "first_quiz" not in u["badges"]: u["badges"].append("first_quiz")
+        if idx >= u["warmup_step"]: u["warmup_step"] = idx + 1
         btns = []
         if idx + 1 < len(WARMUP_LESSONS):
             btns.append([InlineKeyboardButton("➡️ Следующий урок", callback_data=f"warmup_{idx+1}")])
         btns.append([InlineKeyboardButton("📚 Все уроки", callback_data="warmup_menu")])
         btns.append([InlineKeyboardButton("🏠 Главная", callback_data="start")])
-        text = (
-            f"{lesson['title']}\n\n"
-            f"{lesson['text']}\n\n"
-            f"✨ +{lesson['xp']} XP получено!\n"
-            + (f"\n{lvl_up}" if lvl_up else "")
-        )
+        text = f"{lesson['title']}\n\n{lesson['text']}\n\n✨ +{lesson['xp']} XP получено!" + (f"\n\n{lvl_up}" if lvl_up else "")
         await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(btns))
 
     elif data == "quiz_menu":
-        await q.edit_message_text(
-            "📝 *Квизы*\n\nКаждый правильный ответ = ХР + прокачка скилла!\n\nВыбери тему:",
-            reply_markup=quiz_menu_kb(),
-            parse_mode="Markdown"
-        )
+        await q.edit_message_text("📝 *Квизы*\n\nКаждый правильный ответ = ХР + прокачка скилла!\n\nВыбери тему:",
+                                   reply_markup=quiz_menu_kb(), parse_mode="Markdown")
 
     elif data.startswith("quiz_") and not data.startswith("quiz_ans_"):
         qid = data[5:]
-        if qid not in QUIZZES:
-            return
+        if qid not in QUIZZES: return
         quiz = QUIZZES[qid]
-        if "first_quiz" not in u["badges"]:
-            u["badges"].append("first_quiz")
+        if "first_quiz" not in u["badges"]: u["badges"].append("first_quiz")
         u["quiz_state"] = {"id": qid, "step": 0, "correct": 0}
         q0 = quiz["qs"][0]
-        btns = [[InlineKeyboardButton(f"{o}", callback_data=f"quiz_ans_{qid}_0_{i}")] for i, o in enumerate(q0["opts"])]
-        await q.edit_message_text(
-            f"📝🔥 {quiz['title']}\nВопрос 1/{len(quiz['qs'])}\n\n❓ {q0['q']}",
-            reply_markup=InlineKeyboardMarkup(btns)
-        )
+        btns = [[InlineKeyboardButton(o, callback_data=f"quiz_ans_{qid}_0_{i}")] for i, o in enumerate(q0["opts"])]
+        await q.edit_message_text(f"📝 {quiz['title']}\nВопрос 1/{len(quiz['qs'])}\n\n❓ {q0['q']}",
+                                   reply_markup=InlineKeyboardMarkup(btns))
 
     elif data.startswith("quiz_ans_"):
         parts = data.split("_")
-        qid = parts[2]
-        step = int(parts[3])
-        chosen = int(parts[4])
-        if qid not in QUIZZES:
-            return
+        qid, step, chosen = parts[2], int(parts[3]), int(parts[4])
+        if qid not in QUIZZES: return
         quiz = QUIZZES[qid]
         qs = quiz["qs"]
         correct = qs[step]["a"] == chosen
-        exp_text = qs[step]["exp"]
-        if u.get("quiz_state") and u["quiz_state"].get("id") == qid:
-            if correct:
-                u["quiz_state"]["correct"] = u["quiz_state"].get("correct", 0) + 1
+        if u.get("quiz_state") and u["quiz_state"].get("id") == qid and correct:
+            u["quiz_state"]["correct"] = u["quiz_state"].get("correct", 0) + 1
         xp_gain = quiz["sp"] if correct else 0
-        lvl_up = add_xp(uid, xp_gain, quiz["skill"] if correct else None) if correct else ""
-        result = f"✅ Верно! +{xp_gain} XP\n\n💡 {exp_text}" if correct else f"❌ Не совсем...\n\n💡 {exp_text}"
+        lvl_up = add_xp(uid, xp_gain, quiz["skill"]) if correct else ""
+        result = f"✅ Верно! +{xp_gain} XP\n\n💡 {qs[step]['exp']}" if correct else f"❌ Не совсем...\n\n💡 {qs[step]['exp']}"
         if step + 1 < len(qs):
             nq = qs[step + 1]
-            btns = [[InlineKeyboardButton(f"{o}", callback_data=f"quiz_ans_{qid}_{step+1}_{i}")] for i, o in enumerate(nq["opts"])]
+            btns = [[InlineKeyboardButton(o, callback_data=f"quiz_ans_{qid}_{step+1}_{i}")] for i, o in enumerate(nq["opts"])]
             btns.append([InlineKeyboardButton("🏠 Выйти", callback_data="quiz_menu")])
-            await q.edit_message_text(
-                f"{result}\n\n{'─'*20}\n\n📝 {quiz['title']}\nВопрос {step+2}/{len(qs)}\n\n❓ {nq['q']}",
-                reply_markup=InlineKeyboardMarkup(btns)
-            )
+            await q.edit_message_text(f"{result}\n\n{'─'*20}\n\n📝 Вопрос {step+2}/{len(qs)}\n\n❓ {nq['q']}",
+                                       reply_markup=InlineKeyboardMarkup(btns))
         else:
-            correct_count = u.get("quiz_state", {}).get("correct", 0) + (1 if correct else 0)
-            total = len(qs)
-            if "quest_done" not in u["badges"] and correct_count == total:
-                u["badges"].append("quest_done")
-            btns = [
-                [InlineKeyboardButton("📝 Ещё квиз", callback_data="quiz_menu")],
-                [InlineKeyboardButton("👩‍💻 Мой профиль", callback_data="profile")],
-                [InlineKeyboardButton("🏠 Главная", callback_data="start")],
-            ]
-            await q.edit_message_text(
-                f"{result}\n\n{'═'*20}\n\n🎉 Квиз завершён! {correct_count}/{total} верных\n{lvl_up}",
-                reply_markup=InlineKeyboardMarkup(btns)
-            )
+            cc = u.get("quiz_state", {}).get("correct", 0) + (1 if correct else 0)
+            if "quest_done" not in u["badges"] and cc == len(qs): u["badges"].append("quest_done")
+            btns = [[InlineKeyboardButton("📝 Ещё квиз", callback_data="quiz_menu")],
+                    [InlineKeyboardButton("👩‍💻 Мой профиль", callback_data="profile")],
+                    [InlineKeyboardButton("🏠 Главная", callback_data="start")]]
+            await q.edit_message_text(f"{result}\n\n{'═'*20}\n\n🎉 Квиз завершён! {cc}/{len(qs)} верных\n{lvl_up}",
+                                       reply_markup=InlineKeyboardMarkup(btns))
 
     elif data == "quest_start":
         step = u.get("quest_step", 0)
         if step >= len(SMM_QUEST):
-            await q.edit_message_text(
-                "🏆 Ты прошла весь SMM-Квест! Ты настоящий специалист!\n\nДержи финальный бейдж: ⚔️",
-                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Главная", callback_data="start")]])
-            )
+            await q.edit_message_text("🏆 Ты прошла весь SMM-Квест! Ты настоящий специалист! ⚔️",
+                                       reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Главная", callback_data="start")]]))
             return
         item = SMM_QUEST[step]
         btns = [[InlineKeyboardButton(o, callback_data=f"quest_ans_{step}_{i}")] for i, o in enumerate(item["opts"])]
         btns.append([InlineKeyboardButton("🏠 Выйти", callback_data="start")])
-        await q.edit_message_text(
-            f"⚔️ *SMM-Квест* | Шаг {step+1}/{len(SMM_QUEST)}\n\n{item['q']}",
-            reply_markup=InlineKeyboardMarkup(btns),
-            parse_mode="Markdown"
-        )
+        await q.edit_message_text(f"⚔️ *SMM-Квест* | Шаг {step+1}/{len(SMM_QUEST)}\n\n{item['q']}",
+                                   reply_markup=InlineKeyboardMarkup(btns), parse_mode="Markdown")
 
     elif data.startswith("quest_ans_"):
         parts = data.split("_")
-        step = int(parts[2])
-        chosen = int(parts[3])
+        step, chosen = int(parts[2]), int(parts[3])
         item = SMM_QUEST[step]
         correct = item["a"] == chosen
-        lvl_up = add_xp(uid, item["xp"] if correct else 5, "strategy") if correct else add_xp(uid, 5)
-        if correct:
-            u["quest_step"] = max(u.get("quest_step", 0), step + 1)
+        lvl_up = add_xp(uid, item["xp"] if correct else 5, "strategy")
+        if correct: u["quest_step"] = max(u.get("quest_step", 0), step + 1)
         result = f"✅ Верно! +{item['xp']} XP\n\n💡 {item['exp']}" if correct else f"❌ Не то...\n\n💡 {item['exp']}"
         btns = [[InlineKeyboardButton("➡️ Следующий шаг", callback_data="quest_start")],
                 [InlineKeyboardButton("🏠 Главная", callback_data="start")]]
-        await q.edit_message_text(
-            f"{result}\n\n{lvl_up if lvl_up else ''}",
-            reply_markup=InlineKeyboardMarkup(btns)
-        )
+        await q.edit_message_text(f"{result}" + (f"\n\n{lvl_up}" if lvl_up else ""),
+                                   reply_markup=InlineKeyboardMarkup(btns))
 
 # ── MAIN ──────────────────────────────────────────────────────────────────────
 def main():
@@ -560,7 +351,7 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(cb))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
-    print("🚀 Марьяша-бот запущен с AI-агентом!")
+    print("🚀 Марьяша-бот запущен с Gemini AI-агентом!")
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
