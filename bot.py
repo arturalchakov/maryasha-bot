@@ -182,6 +182,7 @@ async def ai_chat(uid, message):
                 }
             )
         data = resp.json()
+        print(f"[GEMINI DEBUG] status={resp.status_code} keys={list(data.keys())} promptFeedback={data.get('promptFeedback')}", flush=True)
 
         # Safely extract reply — candidates can be empty if Gemini filtered the response
         candidates = data.get("candidates", [])
