@@ -21,5 +21,7 @@ jobs:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          sleep 20
-          python bot.py
+          until python bot.py; do
+            echo "Bot crashed, waiting 30s before restart..."
+            sleep 30
+          done
