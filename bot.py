@@ -159,32 +159,51 @@ async def ai_chat(uid, message):
         import httpx
         u = get_user(uid)
         history = u.get("chat_history", [])
-        
+
         # Build contents for Gemini API
         contents = []
         for msg in history[-10:]:
             contents.append({"role": msg["role"], "parts": [{"text": msg["content"]}]})
         contents.append({"role": "user", "parts": [{"text": message}]})
-        
+
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(
                 f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}",
                 json={
                     "system_instruction": {"parts": [{"text": AI_SYSTEM}]},
                     "contents": contents,
-                    "generationConfig": {"maxOutputTokens": 300, "temperature": 0.8}
+                    "generationConfig": {"maxOutputTokens": 512, "temperature": 0.8},
+                    "safetySettings": [
+                        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+                        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+                        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+                    ]
                 }
             )
         data = resp.json()
-        reply = data["candidates"][0]["content"]["parts"][0]["text"]
-        
+
+        # Safely extract reply — candidates can be empty if Gemini filtered the response
+        candidates = data.get("candidates", [])
+        if not candidates:
+            finish = data.get("promptFeedback", {}).get("blockReason", "unknown")
+            return f"🤖 Не смогла ответить (причина: {finish}). Попробуй перефразировать вопрос!"
+
+        first = candidates[0]
+        if not first.get("content") or not first["content"].get("parts"):
+            finish_reason = first.get("finishReason", "unknown")
+            return f"🤖 Ответ не получен (finishReason: {finish_reason}). Попробуй ещё раз!"
+
+        reply = first["content"]["parts"][0]["text"].strip()
+
         history.append({"role": "user", "content": message})
         history.append({"role": "model", "content": reply})
         u["chat_history"] = history[-20:]
         return reply
+    except httpx.TimeoutException:
+        return "🤖 Gemini не ответил вовремя. Попробуй ещё раз!"
     except Exception as e:
-        return f"🤖 Упс, что-то пошло не так: {str(e)[:120]}. Попробуй ещё раз!"
-
+        return f"🤖 Упс, что-то пошло не так: {str(e)[:150]}. Попробуй ещё раз!"
 # ── KEYBOARDS ─────────────────────────────────────────────────────────────────
 def main_kb():
     return InlineKeyboardMarkup([
