@@ -4,10 +4,13 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  schedule:
+    - cron: '0 */5 * * *'
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
+    timeout-minutes: 290
     steps:
       - uses: actions/checkout@v3
       - name: Set up Python
@@ -21,7 +24,8 @@ jobs:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: |
-          until python bot.py; do
-            echo "Bot crashed, waiting 30s before restart..."
-            sleep 30
+          while true; do
+            python bot.py
+            echo "Bot crashed, restarting in 5 seconds..."
+            sleep 5
           done
