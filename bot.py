@@ -182,7 +182,7 @@ async def ai_chat(uid, message):
                 }
             )
         data = resp.json()
-        print(f"[GEMINI DEBUG] status={resp.status_code} keys={list(data.keys())} promptFeedback={data.get('promptFeedback')}", flush=True)
+
 
         # Safely extract reply — candidates can be empty if Gemini filtered the response
         candidates = data.get("candidates", [])
@@ -315,7 +315,7 @@ async def cb(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     elif data.startswith("quiz_ans_"):
         parts = data.split("_")
-        qid, step, chosen = parts[2], int(parts[3]), int(parts[4])
+        chosen = int(parts[-1]); step = int(parts[-2]); qid = "_".join(parts[2:-2])
         if qid not in QUIZZES: return
         quiz = QUIZZES[qid]
         qs = quiz["qs"]
