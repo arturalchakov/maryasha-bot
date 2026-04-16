@@ -7,7 +7,7 @@ from telegram.ext import (
 )
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
-DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 
 # ── RPG LEVELS ───────────────────────────────────────────────────────────────
 LEVELS = [
@@ -153,51 +153,36 @@ AI_SYSTEM = """Ты — Марьяша-бот, крутой SMM-наставни
 Если вопрос не про SMM — мягко верни к теме."""
 
 async def ai_chat(uid, message):
-    if not DEEPSEEK_API_KEY:
-        return "🤖 AI-агент пока спит... Нужно добавить DEEPSEEK_API_KEY в секреты GitHub!"
+    if not GROQ_API_KEY:
+        return "🤖 AI-агент пока спит... Нужно добавить GROQ_API_KEY в секреты GitHub!"
     try:
         import httpx
         u = get_user(uid)
         history = u.get("chat_history", [])
-
-        # Build messages for DeepSeek API (OpenAI-compatible format)
         messages = [{"role": "system", "content": AI_SYSTEM}]
         for msg in history[-10:]:
             role = "assistant" if msg["role"] == "model" else msg["role"]
             messages.append({"role": role, "content": msg["content"]})
         messages.append({"role": "user", "content": message})
-
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(
-                "https://api.deepseek.com/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "model": "deepseek-chat",
-                    "messages": messages,
-                    "max_tokens": 512,
-                    "temperature": 0.8
-                }
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"},
+                json={"model": "llama-3.3-70b-versatile", "messages": messages, "max_tokens": 512, "temperature": 0.8}
             )
         data = resp.json()
-
         if "error" in data:
-            return f"🤖 Ошибка DeepSeek: {data['error'].get('message', 'unknown')}. Попробуй ещё раз!"
-
+            return f"🤖 Ошибка Groq: {data['error'].get('message', 'unknown')}. Попробуй ещё раз!"
         choices = data.get("choices", [])
         if not choices:
             return "🤖 Не смогла ответить. Попробуй переформулировать вопрос!"
-
         reply = choices[0]["message"]["content"].strip()
-
         history.append({"role": "user", "content": message})
         history.append({"role": "model", "content": reply})
         u["chat_history"] = history[-20:]
         return reply
     except httpx.TimeoutException:
-        return "🤖 DeepSeek не ответил вовремя. Попробуй ещё раз!"
+        return "🤖 Groq не ответил вовремя. Попробуй ещё раз!"
     except Exception as e:
         return f"🤖 Упс, что-то пошло не так: {str(e)[:150]}. Попробуй ещё раз!"
 # ── KEYBOARDS ─────────────────────────────────────────────────────────────────
